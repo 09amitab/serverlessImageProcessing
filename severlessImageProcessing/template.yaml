@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: ''
+Transform: AWS::Serverless
+Description: Serverless Image Upload and Processing with DevOps Automation
+
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: python3.11
+    MemorySize: 128
+    Tracing: Active
+    Environment:
+      Variables:
+        BUCKET_NAME: !Ref ImageBucket
+
+Resources:
+
+  ### S3 Bucket
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: image-processing-bucket
+
+  ### IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaExecutionRole
+      AssumeRolePolicyDocument:
+        Version: ""
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaS3LogsSNSAccess
+          PolicyDocument:
+            Version: ""
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub "${ImageBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: "*"
+
+  ### Lambda: Upload Image
+  UploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: UploadFunction
+      Handler: app.lambda_handler
+      CodeUri: upload/
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        UploadAPI:
+          Type: Api
+          Properties:
+            Path: /upload
+            Method: post
+
+  ### Lambda: Image Processing
+  ProcessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: ProcessFunction
+      Handler: app.lambda_handler
+      CodeUri: process/
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
+
+  ### SNS Topic for Alerts
+  ImageAlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ImageUploadAlerts
+
+  ### CloudWatch Log Group (Optional, auto-created by default)
+  UploadLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/UploadFunction
+      RetentionInDays: 7
+
+  ProcessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/ProcessFunction
+      RetentionInDays: 7
+
+Outputs:
+  UploadAPIEndpoint:
+    Description: "API Gateway endpoint to upload image"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/upload"
+
+  BucketName:
+    Value: !Ref ImageBucket
+
+  SNSTopic:
+    Value: !Ref ImageAlertsTopic
