@@ -4,6 +4,7 @@ import os
 import json
 
 s3 = boto3.client('s3')
+
 ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png']
 BUCKET_NAME = os.environ['BUCKET_NAME']
 
