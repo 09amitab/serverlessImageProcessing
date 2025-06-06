@@ -38,8 +38,8 @@ jobs:
           sam deploy \
             --stack-name serverless-image-app \
             --capabilities CAPABILITY_IAM \
-            --region your-region \
+            --region us-east-1 \
             --s3-bucket processedimagestorage  \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
-            
+
