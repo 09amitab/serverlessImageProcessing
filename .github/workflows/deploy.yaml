@@ -42,3 +42,4 @@ jobs:
             --s3-bucket processedimagestorage  \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
+            
