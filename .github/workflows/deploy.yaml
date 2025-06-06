@@ -1,4 +1,4 @@
-name: Deploy SAM Application
+name: Deploy Serverless Image App
 
 on:
   push:
@@ -9,8 +9,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      BUCKET_NAME: my-serverless-artifacts-bucket  # <-- Change this to a unique bucket name
+      AWS_REGION: us-east-1                                # <-- Change to your region
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -27,18 +31,30 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Build SAM app
-        run: sam build
+      - name: Create S3 Bucket if not exists
+        run: |
+          if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+            echo "Bucket does not exist. Creating $BUCKET_NAME..."
+            aws s3api create-bucket \
+              --bucket "$BUCKET_NAME" \
+              --region "$AWS_REGION" \
+              --create-bucket-configuration LocationConstraint="$AWS_REGION"
+          else
+            echo "Bucket $BUCKET_NAME already exists."
+          fi
 
-      - name: Deploy SAM app
+      - name: Build SAM Application
+        run: |
+          sam build
+
+      - name: Deploy SAM Application
         run: |
           sam deploy \
             --stack-name serverless-image-app \
             --capabilities CAPABILITY_IAM \
-            --region ${{ secrets.AWS_REGION }} \
+            --region "$AWS_REGION" \
+            --s3-bucket "$BUCKET_NAME" \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
-
-            
