@@ -59,13 +59,13 @@ Resources:
     Properties:
       FunctionName: UploadFunction
       Handler: app.lambda_handler
-      CodeUri: upload/
+      CodeUri: uploadimage/
       Role: !GetAtt LambdaExecutionRole.Arn
       Events:
         UploadAPI:
           Type: Api
           Properties:
-            Path: /upload
+            Path: /uploadimage
             Method: post
 
   ### Lambda: Image Processing
@@ -74,7 +74,7 @@ Resources:
     Properties:
       FunctionName: ProcessFunction
       Handler: app.lambda_handler
-      CodeUri: process/
+      CodeUri: processimage/
       Role: !GetAtt LambdaExecutionRole.Arn
       Events:
         S3Trigger:
