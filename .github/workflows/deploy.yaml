@@ -2,25 +2,21 @@ name: Deploy Serverless Image App
 
 on:
   push:
-    branches: [main]
-
-env:
-  BUCKET_NAME: my-serverless-artifacts-bucket
-  STACK_NAME: serverless-image-app
-  AWS_REGION: us-east-1
+    branches:
+      - main  # or whichever branch you want to trigger the deployment from
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.10
+          python-version: '3.10'
 
       - name: Install AWS SAM CLI
         run: |
@@ -31,34 +27,18 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: your-region
 
-      - name: Create S3 Bucket if not exists
+      - name: Build with SAM
         run: |
-          if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
-            echo "Bucket does not exist. Creating $BUCKET_NAME..."
-            if [ "$AWS_REGION" == "us-east-1" ]; then
-              aws s3api create-bucket \
-                --bucket "$BUCKET_NAME"
-            else
-              aws s3api create-bucket \
-                --bucket "$BUCKET_NAME" \
-                --region "$AWS_REGION" \
-                --create-bucket-configuration LocationConstraint="$AWS_REGION"
-            fi
-          else
-            echo "Bucket $BUCKET_NAME already exists."
-          fi
+          sam build
 
-      - name: Build SAM App
-        run: sam build
-
-      - name: Deploy SAM App
+      - name: Deploy with SAM
         run: |
           sam deploy \
-            --stack-name $STACK_NAME \
-            --s3-bucket $BUCKET_NAME \
+            --stack-name serverless-image-app \
             --capabilities CAPABILITY_IAM \
-            --region $AWS_REGION \
+            --region your-region \
+            --s3-bucket processedimagestorage  \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
