@@ -5,7 +5,7 @@ Description: Serverless Image Upload and Processing with DevOps Automation
 Globals:
   Function:
     Timeout: 10
-    Runtime: python3.11
+    Runtime: python3.10
     MemorySize: 128
     Tracing: Active
     Environment:
