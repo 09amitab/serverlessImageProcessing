@@ -34,15 +34,14 @@ jobs:
           sam build
 
       - name: Deploy with SAM
-        run: |
-          sam deploy \
-            --stack-name serverless-image-app \
-           --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
-
-            --region us-east-1 \
-            --s3-bucket processedimagestorage  \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset
+  run: |
+    sam deploy \
+      --stack-name serverless-image-app \
+      --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+      --region us-east-1 \
+      --s3-bucket processedimagestorage \
+      --no-confirm-changeset \
+      --no-fail-on-empty-changeset
 
             
 
