@@ -19,23 +19,29 @@ Resources:
     Properties:
       BucketName: !Sub "image-processing-bucket-${AWS::AccountId}-${AWS::Region}"
 
+  ImageApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ImageApi
+      StageName: Prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
 
-  UploadFunction:
+  UploadImageFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: UploadFunction
-      Handler: app.lambda_handler
-      CodeUri: uploadimage/
+      Handler: upload.lambda_handler
       Runtime: python3.10
       Role: !GetAtt LambdaExecutionRole.Arn
       Events:
-        UploadAPI:
+        UploadImageAPI:
           Type: Api
           Properties:
             Path: /uploadimage
             Method: post
-
-
+            RestApiId: !Ref ImageApi
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -72,4 +78,4 @@ Resources:
 Outputs:
   UploadAPIEndpoint:
     Description: "API Gateway endpoint to upload image"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/uploadimage"
+    Value: !Sub "https://${ImageApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/uploadimage"
