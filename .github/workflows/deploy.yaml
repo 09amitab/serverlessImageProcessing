@@ -2,25 +2,25 @@ name: Deploy Serverless Image App
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+
+env:
+  BUCKET_NAME: my-serverless-artifacts-bucket
+  STACK_NAME: serverless-image-app
+  AWS_REGION: us-east-1
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    env:
-      BUCKET_NAME: my-serverless-artifacts-bucket  # <-- Change this to a unique bucket name
-      AWS_REGION: us-east-1                                # <-- Change to your region
-
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: 3.1
 
       - name: Install AWS SAM CLI
         run: |
@@ -37,24 +37,28 @@ jobs:
         run: |
           if ! aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
             echo "Bucket does not exist. Creating $BUCKET_NAME..."
-            aws s3api create-bucket \
-              --bucket "$BUCKET_NAME" \
-              --region "$AWS_REGION" \
-              --create-bucket-configuration LocationConstraint="$AWS_REGION"
+            if [ "$AWS_REGION" == "us-east-1" ]; then
+              aws s3api create-bucket \
+                --bucket "$BUCKET_NAME"
+            else
+              aws s3api create-bucket \
+                --bucket "$BUCKET_NAME" \
+                --region "$AWS_REGION" \
+                --create-bucket-configuration LocationConstraint="$AWS_REGION"
+            fi
           else
             echo "Bucket $BUCKET_NAME already exists."
           fi
 
-      - name: Build SAM Application
-        run: |
-          sam build
+      - name: Build SAM App
+        run: sam build
 
-      - name: Deploy SAM Application
+      - name: Deploy SAM App
         run: |
           sam deploy \
-            --stack-name serverless-image-app \
+            --stack-name $STACK_NAME \
+            --s3-bucket $BUCKET_NAME \
             --capabilities CAPABILITY_IAM \
-            --region "$AWS_REGION" \
-            --s3-bucket "$BUCKET_NAME" \
+            --region $AWS_REGION \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
