@@ -17,7 +17,8 @@ Resources:
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: image-processing-bucket
+      BucketName: !Sub "image-processing-bucket-${AWS::AccountId}-${AWS::Region}"
+
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
