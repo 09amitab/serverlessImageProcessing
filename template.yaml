@@ -1,5 +1,5 @@
-AWSTemplateFormatVersion: ''
-Transform: AWS::Serverless
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
 Description: Serverless Image Upload and Processing with DevOps Automation
 
 Globals:
@@ -14,19 +14,17 @@ Globals:
 
 Resources:
 
-  ### S3 Bucket
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: image-processing-bucket
 
-  ### IAM Role for Lambda
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       RoleName: LambdaExecutionRole
       AssumeRolePolicyDocument:
-        Version: ""
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -35,7 +33,7 @@ Resources:
       Policies:
         - PolicyName: LambdaS3LogsSNSAccess
           PolicyDocument:
-            Version: ""
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
@@ -52,65 +50,3 @@ Resources:
                 Action:
                   - sns:Publish
                 Resource: "*"
-
-  ### Lambda: Upload Image
-  UploadFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: UploadFunction
-      Handler: app.lambda_handler
-      CodeUri: uploadimage/
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Events:
-        UploadAPI:
-          Type: Api
-          Properties:
-            Path: /uploadimage
-            Method: post
-
-  ### Lambda: Image Processing
-  ProcessFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: ProcessFunction
-      Handler: app.lambda_handler
-      CodeUri: processimage/
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Events:
-        S3Trigger:
-          Type: S3
-          Properties:
-            Bucket: !Ref ImageBucket
-            Events: s3:ObjectCreated:*
-
-  ### SNS Topic for Alerts
-  ImageAlertsTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      TopicName: ImageUploadAlerts
-
-  ### CloudWatch Log Group (Optional, auto-created by default)
-  UploadLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /aws/lambda/UploadFunction
-      RetentionInDays: 7
-
-  ProcessLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: /aws/lambda/ProcessFunction
-      RetentionInDays: 7
-
-Outputs:
-  UploadAPIEndpoint:
-    Description: "API Gateway endpoint to upload image"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/upload"
-
-  BucketName:
-    Value: !Ref ImageBucket
-
-  SNSTopic:
-    Value: !Ref ImageAlertsTopic
-
-    
