@@ -112,3 +112,5 @@ Outputs:
 
   SNSTopic:
     Value: !Ref ImageAlertsTopic
+
+    
