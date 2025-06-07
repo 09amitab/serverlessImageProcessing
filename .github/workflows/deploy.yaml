@@ -1,49 +1,35 @@
-name: Deploy Serverless Image App
+name: Deploy SAM Application
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install AWS SAM CLI
-        run: |
-          pip install aws-sam-cli
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ap-south-1
 
-      - name: Ensure S3 Bucket for SAM deployment exists
+      - name: Install AWS SAM CLI
         run: |
-          if ! aws s3api head-bucket --bucket sam-deployment-bucket-123 2>/dev/null; then
-            aws s3 mb s3://sam-deployment-bucket-123 --region us-east-1
-          fi
+          pip install aws-sam-cli
 
-      - name: Build with SAM
+      - name: Build SAM project
         run: sam build
 
-      - name: Deploy with SAM
+      - name: Deploy SAM application
         run: |
           sam deploy \
-            --stack-name serverless-image-app \
-            --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-            --region us-east-1 \
-            --s3-bucket sam-deployment-bucket-123 \
-            --no-confirm-changeset \
-            --no-fail-on-empty-changeset
+            --template-file .aws-sam/build/template.yaml \
+            --stack-name image-processing-app \
+            --capabilities CAPABILITY_IAM \
+            --resolve-s3

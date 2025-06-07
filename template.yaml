@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Serverless Image Upload and Processing with DevOps Automation
+Description: Serverless Image Upload and Processing with DevOps Automation (S3 + Lambda + API + SNS + CloudWatch)
 
 Globals:
   Function:
@@ -11,6 +11,7 @@ Globals:
     Environment:
       Variables:
         BUCKET_NAME: !Ref ImageBucket
+        SNS_TOPIC_ARN: !Ref ImageProcessedTopic
 
 Resources:
 
@@ -18,6 +19,7 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "img-pro-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
+    DependsOn: ProcessImageFunctionInvokePermission
 
   ImageApi:
     Type: AWS::Serverless::Api
@@ -25,10 +27,11 @@ Resources:
       Name: ImageApi
       StageName: Prod
       Cors:
-        AllowMethods: "'OPTIONS,POST'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
         AllowOrigin: "'*'"
-        MaxAge: "'600'"
+      BinaryMediaTypes:
+        - "*/*"
 
   UploadImageFunction:
     Type: AWS::Serverless::Function
@@ -43,12 +46,58 @@ Resources:
             Path: /uploadimage
             Method: post
             RestApiId: !Ref ImageApi
-        Preflight:
-          Type: Api
+
+  ProcessImageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: process.lambda_handler
+      CodeUri: .
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        S3UploadEventJPG:
+          Type: S3
           Properties:
-            Path: /uploadimage
-            Method: options
-            RestApiId: !Ref ImageApi
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpg
+        S3UploadEventJPEG:
+          Type: S3
+          Properties:
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpeg
+        S3UploadEventPNG:
+          Type: S3
+          Properties:
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .png
+
+  ProcessImageFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ProcessImageFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !GetAtt ImageBucket.Arn
+
+  ImageProcessedTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ImageProcessedTopic
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -62,7 +111,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: LambdaS3LogsSNSAccess
+        - PolicyName: LambdaS3SNSLogsAccess
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -76,11 +125,13 @@ Resources:
                 Action:
                   - s3:GetObject
                   - s3:PutObject
-                Resource: !Sub "${ImageBucket.Arn}/*"
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt ImageBucket.Arn
+                  - !Sub "${ImageBucket.Arn}/*"
               - Effect: Allow
-                Action:
-                  - sns:Publish
-                Resource: "*"
+                Action: sns:Publish
+                Resource: !Ref ImageProcessedTopic
 
 Outputs:
 
@@ -91,3 +142,7 @@ Outputs:
   ImageBucketName:
     Description: "The name of the S3 bucket for image uploads"
     Value: !Ref ImageBucket
+
+  SNSTopicArn:
+    Description: "SNS Topic ARN for processed image notification"
+    Value: !Ref ImageProcessedTopic
