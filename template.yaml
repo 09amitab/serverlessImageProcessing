@@ -25,14 +25,15 @@ Resources:
       Name: ImageApi
       StageName: Prod
       Cors:
-        AllowMethods: "'POST,OPTIONS,GET'"
-        AllowHeaders: "'Content-Type'"
+        AllowMethods: "'OPTIONS,POST,GET'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
         AllowOrigin: "'*'"
 
   UploadImageFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: upload.lambda_handler
+      Runtime: python3.10
       Role: !GetAtt LambdaExecutionRole.Arn
       Events:
         UploadImageAPI:
