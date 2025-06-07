@@ -20,15 +20,15 @@ Resources:
       BucketName: !Sub "img-pro-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
 
   ImageApi:
-  Type: AWS::Serverless::Api
-  Properties:
-    Name: ImageApi
-    StageName: Prod
-    Cors:
-      AllowMethods: "'POST,OPTIONS'"
-      AllowHeaders: "'Content-Type'"
-      AllowOrigin: "'*'"
-      
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ImageApi
+      StageName: Prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
+
   UploadImageFunction:
     Type: AWS::Serverless::Function
     Properties:
