@@ -11,14 +11,13 @@ Globals:
     Environment:
       Variables:
         BUCKET_NAME: !Ref ImageBucket
-    Role: !GetAtt LambdaExecutionRole.Arn
 
 Resources:
 
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "image-processing-bucket-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
+      BucketName: !Sub "img-pro-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
 
   ImageApi:
     Type: AWS::Serverless::Api
@@ -38,6 +37,7 @@ Resources:
     Properties:
       Handler: upload.lambda_handler
       CodeUri: .
+      Role: !GetAtt LambdaExecutionRole.Arn
       Events:
         UploadImageAPI:
           Type: Api
