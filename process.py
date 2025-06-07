@@ -2,8 +2,8 @@ import json
 import boto3
 import os
 
-sns = boto3.client("sns")
-topic_arn = os.environ["SNS_TOPIC_ARN"]
+sns = boto3.client('sns')
+SNS_TOPIC_ARN = os.environ['SNS_TOPIC_ARN']
 
 def lambda_handler(event, context):
     for record in event['Records']:
@@ -11,12 +11,17 @@ def lambda_handler(event, context):
         key = record['s3']['object']['key']
 
         message = f"New image uploaded: s3://{bucket}/{key}"
-        print("Sending SNS:", message)
-
+        
+        # Publish to SNS
         sns.publish(
-            TopicArn=topic_arn,
-            Subject="New Image Uploaded",
-            Message=message
+            TopicArn=SNS_TOPIC_ARN,
+            Message=message,
+            Subject="Image Upload Notification"
         )
+        
+        print(message)
 
-    return {"statusCode": 200}
+    return {
+        "statusCode": 200,
+        "body": json.dumps({"message": "SNS notification sent"})
+    }
