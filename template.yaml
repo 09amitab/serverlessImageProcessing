@@ -11,17 +11,20 @@ Globals:
     Environment:
       Variables:
         BUCKET_NAME: !Ref ImageBucket
-        SNS_TOPIC_ARN: !Ref ImageNotificationTopic
+        SNS_TOPIC_ARN: !Ref ImageUploadTopic
 
 Resources:
 
-  ### 🚀 S3 Bucket for Image Uploads
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub "img-pro-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
 
-  ### 🌐 API Gateway for Uploading Images
+  ImageUploadTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ImageUploadNotificationTopic
+
   ImageApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -32,7 +35,6 @@ Resources:
         AllowHeaders: "'Content-Type'"
         AllowOrigin: "'*'"
 
-  ### 🧠 Lambda Function for Uploading Images
   UploadImageFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -47,28 +49,35 @@ Resources:
             Method: post
             RestApiId: !Ref ImageApi
 
-  ### 🧠 Lambda Function to Process Images After Upload
   ProcessImageFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: process.lambda_handler
       CodeUri: .
       Role: !GetAtt LambdaExecutionRole.Arn
-      Events:
-        S3UploadEvent:
-          Type: S3
-          Properties:
-            Bucket: !Ref ImageBucket
-            Events:
-              - s3:ObjectCreated:*.jpg
-              - s3:ObjectCreated:*.jpeg
-              - s3:ObjectCreated:*.png
 
-  ### 🛠 IAM Role for Lambda Functions
+  ProcessImageBucketNotification:
+    Type: AWS::S3::BucketNotification
+    Properties:
+      Bucket: !Ref ImageBucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: "s3:ObjectCreated:*"
+            Function: !GetAtt ProcessImageFunction.Arn
+    DependsOn: ProcessImageFunctionInvokePermission
+
+  ProcessImageFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ProcessImageFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt ImageBucket.Arn
+
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "LambdaExecutionRole-${AWS::StackName}"
+      RoleName: LambdaExecutionRole
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -77,7 +86,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: LambdaS3LogsAccess
+        - PolicyName: LambdaFullAccess
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -86,50 +95,14 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: "*"
-              - Effect: Allow
-                Action:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:ListBucket
-                Resource:
-                  - !GetAtt ImageBucket.Arn
-                  - !Sub "${ImageBucket.Arn}/*"
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - sns:Publish
-                Resource: !Ref ImageNotificationTopic
-
-  ### 🔔 SNS Topic for Notifications
-  ImageNotificationTopic:
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: ImageProcessingNotifications
-      Subscription:
-        - Protocol: email
-          Endpoint: pradhanamitab999@gmail.com  # ✅ Replace with your actual email
-
-  ### 🕸 Static Website Hosting (S3)
-  WebsiteBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "image-frontend-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
-      WebsiteConfiguration:
-        IndexDocument: index.html
-      AccessControl: PublicRead
-    DeletionPolicy: Retain
-
-  WebsiteBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref WebsiteBucket
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal: "*"
-            Action: "s3:GetObject"
-            Resource: !Sub "${WebsiteBucket.Arn}/*"
+                Resource: "*"
 
 Outputs:
 
@@ -141,10 +114,6 @@ Outputs:
     Description: "The name of the S3 bucket for image uploads"
     Value: !Ref ImageBucket
 
-  WebsiteURL:
-    Description: "Frontend static website URL"
-    Value: !Sub "http://${WebsiteBucket}.s3-website-${AWS::Region}.amazonaws.com"
-
-  SNSTopicArn:
-    Description: "SNS Topic ARN for notifications"
-    Value: !Ref ImageNotificationTopic
+  SNSArn:
+    Description: "SNS Topic ARN for Notifications"
+    Value: !Ref ImageUploadTopic
