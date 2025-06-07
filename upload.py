@@ -1,33 +1,29 @@
 import boto3
-import base64
-import uuid
 import os
+import base64
+from urllib.parse import parse_qs
 
-s3 = boto3.client('s3')
-bucket_name = os.environ['BUCKET_NAME']
+s3 = boto3.client("s3")
+bucket = os.environ['BUCKET_NAME']
 
 def lambda_handler(event, context):
     try:
-        content_type = event["headers"].get("content-type") or event["headers"].get("Content-Type")
-        if "multipart/form-data" not in content_type:
-            return {"statusCode": 400, "body": "Invalid content type"}
-
-        image_data = base64.b64decode(event["body"])
-        filename = f"{uuid.uuid4()}.jpg"
+        body = base64.b64decode(event["body"])
+        filename = event["headers"].get("file-name", "uploaded-image.jpg")
 
         s3.put_object(
-            Bucket=bucket_name,
+            Bucket=bucket,
             Key=filename,
-            Body=image_data,
-            ContentType='image/jpeg'
+            Body=body,
+            ContentType=event["headers"].get("Content-Type", "image/jpeg")
         )
 
         return {
             "statusCode": 200,
-            "body": f"Image uploaded as {filename}"
+            "body": f"Image '{filename}' uploaded successfully!"
         }
     except Exception as e:
         return {
             "statusCode": 500,
-            "body": f"Error: {str(e)}"
+            "body": f"Upload failed: {str(e)}"
         }

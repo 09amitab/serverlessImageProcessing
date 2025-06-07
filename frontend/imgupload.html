@@ -1,31 +1,42 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Image Upload</title>
 </head>
 <body>
-  <h2>Upload Image</h2>
-  <input type="file" id="fileInput" accept=".jpg,.jpeg,.png"/>
+  <h1>Upload an Image</h1>
+  <input type="file" id="fileInput" accept="image/png, image/jpeg" />
   <button onclick="uploadImage()">Upload</button>
+  <p id="status"></p>
 
   <script>
     async function uploadImage() {
-      const file = document.getElementById('fileInput').files[0];
-      if (!file) return alert("Select a file.");
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select a file.");
+        return;
+      }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const response = await fetch('YOUR_API_ENDPOINT/uploadimage', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'image/jpeg'
-        },
-        body: base64
-      });
+      document.getElementById("status").innerText = "Uploading...";
 
-      const text = await response.text();
-      alert(text);
+      try {
+        const response = await fetch("__API_URL__", {
+          method: "POST",
+          body: formData,
+        });
+
+        const text = await response.text();
+        document.getElementById("status").innerText = "Upload complete: " + text;
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").innerText = "Upload failed.";
+      }
     }
   </script>
 </body>

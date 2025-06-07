@@ -1,44 +1,58 @@
-name: Deploy SAM Application
+name: Deploy Serverless Image Processor
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.10"
 
-      - name: Install AWS SAM CLI
-        run: |
-          pip install aws-sam-cli
+    - name: Install SAM CLI
+      run: |
+        pip install aws-sam-cli
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Build SAM project
-        run: sam build
+    - name: Build with SAM
+      run: sam build
 
-      - name: Deploy SAM application
-        run: |
-          sam deploy \
-            --template-file .aws-sam/build/template.yaml \
-            --stack-name image-processing-app \
-            --capabilities CAPABILITY_IAM \
-            --resolve-s3
+    - name: Deploy with SAM
+      run: |
+        sam deploy --stack-name image-processing-app \
+                   --capabilities CAPABILITY_IAM \
+                   --resolve-s3 \
+                   --no-confirm-changeset \
+                   --region ${{ secrets.AWS_REGION }} \
+                   --no-fail-on-empty-changeset
 
-      - name: Upload frontend to S3
-        run: |
-          aws s3 cp frontend/index.html s3://image-frontend-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}-image-processing-app/ --acl public-read
+    - name: Get API URL from stack
+      id: api-url
+      run: |
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name image-processing-app \
+          --query "Stacks[0].Outputs[?OutputKey=='UploadAPIEndpoint'].OutputValue" \
+          --output text)
+        echo "API_URL=$API_URL" >> $GITHUB_ENV
+
+    - name: Replace placeholder in index.html
+      run: |
+        sed "s|__API_URL__|${{ env.API_URL }}|g" frontend/index.html > frontend/final.html
+
+    - name: Upload frontend to S3
+      run: |
+        aws s3 cp frontend/final.html s3://image-frontend-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}-image-processing-app/index.html --acl public-read
