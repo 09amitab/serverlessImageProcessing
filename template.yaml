@@ -11,13 +11,15 @@ Globals:
     Environment:
       Variables:
         BUCKET_NAME: !Ref ImageBucket
+    Role: !GetAtt LambdaExecutionRole.Arn
 
 Resources:
 
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "image-processing-bucket-${AWS::AccountId}-${AWS::Region}"
+      
+      BucketName: !Sub "image-processing-bucket-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
 
   ImageApi:
     Type: AWS::Serverless::Api
@@ -25,16 +27,14 @@ Resources:
       Name: ImageApi
       StageName: Prod
       Cors:
-        AllowMethods: "'OPTIONS,POST,GET'"
-        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-        AllowOrigin: "'*'"
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"  # You can restrict this to your domain later
 
   UploadImageFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: upload.lambda_handler
-      Runtime: python3.10
-      Role: !GetAtt LambdaExecutionRole.Arn
       Events:
         UploadImageAPI:
           Type: Api
@@ -79,3 +79,7 @@ Outputs:
   UploadAPIEndpoint:
     Description: "API Gateway endpoint to upload image"
     Value: !Sub "https://${ImageApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/uploadimage"
+
+  ImageBucketName:
+    Description: "The name of the S3 bucket for image uploads"
+    Value: !Ref ImageBucket

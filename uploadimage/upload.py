@@ -30,7 +30,9 @@ def lambda_handler(event, context):
             return {
                 "statusCode": 400,
                 "headers": {
-                    "Access-Control-Allow-Origin": "*"
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Methods": "POST,OPTIONS,GET"
                 },
                 "body": json.dumps({"error": "Invalid file type. Only jpg, jpeg, png allowed."})
             }
@@ -42,25 +44,24 @@ def lambda_handler(event, context):
             ContentType=f"image/{ext}"
         )
 
-    return {
-        "statusCode": 200,
-        "headers": {
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "*",
-              "Access-Control-Allow-Methods": "POST,OPTIONS"
-    },
-    "body": json.dumps({"message": "Upload successful"})
-}
-
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Methods": "POST,OPTIONS,GET"
+            },
+            "body": json.dumps({"message": "Upload successful"})
+        }
 
     except Exception as e:
         print("Error:", str(e))
         return {
             "statusCode": 500,
             "headers": {
-                "Access-Control-Allow-Origin": "*"
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Methods": "POST,OPTIONS,GET"
             },
             "body": json.dumps({"error": "Internal server error", "details": str(e)})
         }
-
-        
