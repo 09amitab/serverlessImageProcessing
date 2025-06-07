@@ -30,18 +30,22 @@ Resources:
         AllowOrigin: "'*'"
 
   UploadImageFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: upload.lambda_handler
-      Runtime: python3.10
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Events:
-        UploadImageAPI:
-          Type: Api
-          Properties:
-            Path: /uploadimage
-            Method: post
-            RestApiId: !Ref ImageApi
+  Type: AWS::Serverless::Function
+  Properties:
+    Handler: upload.lambda_handler
+    Runtime: python3.10
+    Events:
+      UploadImageAPI:
+        Type: Api
+        Properties:
+          Path: /uploadimage
+          Method: post
+          RestApiId: !Ref ImageApi
+          Cors:
+            AllowMethods: "'POST,OPTIONS'"
+            AllowHeaders: "'Content-Type'"
+            AllowOrigin: "'*'"
+
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
