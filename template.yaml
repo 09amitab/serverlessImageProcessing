@@ -17,6 +17,7 @@ Resources:
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
+      # Optional: Remove BucketName for auto-generated unique name
       BucketName: !Sub "image-processing-bucket-${AWS::AccountId}-${AWS::Region}"
 
   ImageApi:
@@ -28,24 +29,6 @@ Resources:
         AllowMethods: "'POST,OPTIONS,GET'"
         AllowHeaders: "'Content-Type'"
         AllowOrigin: "'*'"
-
-  UploadImageFunction:
-  Type: AWS::Serverless::Function
-  Properties:
-    Handler: upload.lambda_handler
-    Runtime: python3.10
-    Events:
-      UploadImageAPI:
-        Type: Api
-        Properties:
-          Path: /uploadimage
-          Method: post
-          RestApiId: !Ref ImageApi
-          Cors:
-            AllowMethods: "'POST,OPTIONS'"
-            AllowHeaders: "'Content-Type'"
-            AllowOrigin: "'*'"
-
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -78,6 +61,24 @@ Resources:
                 Action:
                   - sns:Publish
                 Resource: "*"
+
+  UploadImageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: upload.lambda_handler
+      Runtime: python3.10
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        UploadImageAPI:
+          Type: Api
+          Properties:
+            Path: /uploadimage
+            Method: post
+            RestApiId: !Ref ImageApi
+            Cors:
+              AllowMethods: "'POST,OPTIONS'"
+              AllowHeaders: "'Content-Type'"
+              AllowOrigin: "'*'"
 
 Outputs:
   UploadAPIEndpoint:
