@@ -18,6 +18,11 @@ jobs:
         with:
           python-version: '3.10'
 
+      - name: Create S3 Bucket (if not exists)
+        run: |
+          aws s3api head-bucket --bucket sam-deployment-bucket-123 || \
+          aws s3 mb s3://sam-deployment-bucket-123 --region us-east-1
+
       - name: Install AWS SAM CLI
         run: |
           pip install aws-sam-cli
@@ -39,12 +44,6 @@ jobs:
             --stack-name serverless-image-app \
             --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
             --region us-east-1 \
-            --s3-bucket processedimagestorage \
+            --s3-bucket sam-deployment-bucket-123 \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
-
-
-
-
-            
-

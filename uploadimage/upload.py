@@ -15,9 +15,9 @@ def lambda_handler(event, context):
             "headers": {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Methods": "POST,OPTIONS"
+                "Access-Control-Allow-Methods": "POST,OPTIONS,GET"
             },
-            "body": json.dumps("Preflight OK")
+            "body": json.dumps("OK")
         }
 
     try:

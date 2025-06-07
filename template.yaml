@@ -25,7 +25,7 @@ Resources:
       Name: ImageApi
       StageName: Prod
       Cors:
-        AllowMethods: "'POST,OPTIONS'"
+        AllowMethods: "'POST,OPTIONS,GET'"
         AllowHeaders: "'Content-Type'"
         AllowOrigin: "'*'"
 
