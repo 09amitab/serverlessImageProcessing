@@ -62,3 +62,5 @@ def lambda_handler(event, context):
             },
             "body": json.dumps({"error": "Internal server error", "details": str(e)})
         }
+
+        
