@@ -1,58 +1,109 @@
-name: Deploy Serverless Image Processor
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Image Upload and Processing Application
 
-on:
-  push:
-    branches: [main]
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: python3.10
+    MemorySize: 128
+    Tracing: Active
+    Environment:
+      Variables:
+        BUCKET_NAME: !Ref ImageBucket
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+Resources:
 
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+  ### S3 Bucket ###
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: uploads/
+            Function: !GetAtt ProcessImageFunction.Arn
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10"
+  ### IAM Role ###
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaS3LogsAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !GetAtt ImageBucket.Arn
+                  - !Sub "${ImageBucket.Arn}/*"
 
-    - name: Install SAM CLI
-      run: |
-        pip install aws-sam-cli
+  ### API Gateway ###
+  ImageApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: ImageApi
+      StageName: Prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+        AllowOrigin: "'*'"
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+  ### Upload Function ###
+  UploadImageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: upload.lambda_handler
+      CodeUri: .
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        UploadEndpoint:
+          Type: Api
+          Properties:
+            Path: /uploadimage
+            Method: post
+            RestApiId: !Ref ImageApi
 
-    - name: Build with SAM
-      run: sam build
+  ### Process Function ###
+  ProcessImageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: process.lambda_handler
+      CodeUri: .
+      Role: !GetAtt LambdaExecutionRole.Arn
 
-    - name: Deploy with SAM
-      run: |
-        sam deploy --stack-name image-processing-app \
-                   --capabilities CAPABILITY_IAM \
-                   --resolve-s3 \
-                   --no-confirm-changeset \
-                   --region ${{ secrets.AWS_REGION }} \
-                   --no-fail-on-empty-changeset
+  ### Permission for S3 to invoke ProcessImageFunction ###
+  S3InvokeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ProcessImageFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt ImageBucket.Arn
 
-    - name: Get API URL from stack
-      id: api-url
-      run: |
-        API_URL=$(aws cloudformation describe-stacks \
-          --stack-name image-processing-app \
-          --query "Stacks[0].Outputs[?OutputKey=='UploadAPIEndpoint'].OutputValue" \
-          --output text)
-        echo "API_URL=$API_URL" >> $GITHUB_ENV
+Outputs:
 
-    - name: Replace placeholder in index.html
-      run: |
-        sed "s|__API_URL__|${{ env.API_URL }}|g" frontend/index.html > frontend/final.html
-
-    - name: Upload frontend to S3
-      run: |
-        aws s3 cp frontend/final.html s3://image-frontend-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}-image-processing-app/index.html --acl public-read
+  UploadAPIEndpoint:
+    Description: "API Gateway endpoint to upload image"
+    Value: !Sub "https://${ImageApi}.execute-api.${AWS::Region}.amazo

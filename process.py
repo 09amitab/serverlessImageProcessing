@@ -1,27 +1,47 @@
-import json
 import boto3
 import os
+from PIL import Image
+import io
 
-sns = boto3.client('sns')
-SNS_TOPIC_ARN = os.environ['SNS_TOPIC_ARN']
+s3 = boto3.client('s3')
+BUCKET_NAME = os.environ.get('BUCKET_NAME')
 
 def lambda_handler(event, context):
-    for record in event['Records']:
-        bucket = record['s3']['bucket']['name']
-        key = record['s3']['object']['key']
+    try:
+        # Process each record (can be multiple if batch)
+        for record in event['Records']:
+            key = record['s3']['object']['key']
+            bucket = record['s3']['bucket']['name']
 
-        message = f"New image uploaded: s3://{bucket}/{key}"
-        
-        # Publish to SNS
-        sns.publish(
-            TopicArn=SNS_TOPIC_ARN,
-            Message=message,
-            Subject="Image Upload Notification"
-        )
-        
-        print(message)
+            # Download the image
+            response = s3.get_object(Bucket=bucket, Key=key)
+            img_data = response['Body'].read()
 
-    return {
-        "statusCode": 200,
-        "body": json.dumps({"message": "SNS notification sent"})
-    }
+            # Process the image (convert to grayscale as an example)
+            image = Image.open(io.BytesIO(img_data))
+            gray_image = image.convert('L')  # Convert to grayscale
+
+            # Save processed image to memory
+            buffer = io.BytesIO()
+            gray_image.save(buffer, format=image.format)
+            buffer.seek(0)
+
+            # Define destination key
+            dest_key = key.replace("uploads/", "processed/")
+
+            # Upload processed image
+            s3.put_object(Bucket=bucket, Key=dest_key, Body=buffer)
+
+            print(f"Processed and uploaded image to {dest_key}")
+
+        return {
+            "statusCode": 200,
+            "body": "Image processed successfully."
+        }
+
+    except Exception as e:
+        print("Error processing image:", e)
+        return {
+            "statusCode": 500,
+            "body": f"Error processing image: {str(e)}"
+        }
