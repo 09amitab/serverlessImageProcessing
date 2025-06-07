@@ -25,9 +25,10 @@ Resources:
       Name: ImageApi
       StageName: Prod
       Cors:
-        AllowMethods: "'POST,OPTIONS'"
-        AllowHeaders: "'Content-Type'"
+        AllowMethods: "'OPTIONS,POST'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
         AllowOrigin: "'*'"
+        MaxAge: "'600'"
 
   UploadImageFunction:
     Type: AWS::Serverless::Function
@@ -41,6 +42,12 @@ Resources:
           Properties:
             Path: /uploadimage
             Method: post
+            RestApiId: !Ref ImageApi
+        Preflight:
+          Type: Api
+          Properties:
+            Path: /uploadimage
+            Method: options
             RestApiId: !Ref ImageApi
 
   LambdaExecutionRole:

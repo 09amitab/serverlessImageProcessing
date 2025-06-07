@@ -3,6 +3,7 @@ import os
 import json
 from PIL import Image, ImageOps
 import tempfile
+import urllib.parse
 
 s3 = boto3.client('s3')
 
@@ -10,7 +11,7 @@ def lambda_handler(event, context):
     try:
         for record in event['Records']:
             bucket = record['s3']['bucket']['name']
-            key = record['s3']['object']['key']
+            key = urllib.parse.unquote_plus(record['s3']['object']['key'])
 
             print(f"Processing image: s3://{bucket}/{key}")
 
@@ -32,14 +33,8 @@ def lambda_handler(event, context):
                 # Upload processed image back to S3
                 s3.upload_file(processed_path, bucket, processed_key)
 
-        # Return success response
         return {
             "statusCode": 200,
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Methods": "POST,OPTIONS,GET"
-            },
             "body": json.dumps({"message": "Image processed and uploaded successfully"})
         }
 

@@ -18,7 +18,6 @@ jobs:
         with:
           python-version: '3.10'
 
-    
       - name: Install AWS SAM CLI
         run: |
           pip install aws-sam-cli
@@ -30,15 +29,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Create S3 Bucket (if not exists)
+      - name: Ensure S3 Bucket for SAM deployment exists
         run: |
-          aws s3api head-bucket --bucket sam-deployment-bucket-123 || \
-          aws s3 mb s3://sam-deployment-bucket-123 --region us-east-1
-
+          if ! aws s3api head-bucket --bucket sam-deployment-bucket-123 2>/dev/null; then
+            aws s3 mb s3://sam-deployment-bucket-123 --region us-east-1
+          fi
 
       - name: Build with SAM
-        run: |
-          sam build
+        run: sam build
 
       - name: Deploy with SAM
         run: |
