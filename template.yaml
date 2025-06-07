@@ -27,7 +27,7 @@ Resources:
       Cors:
         AllowMethods: POST,OPTIONS
         AllowHeaders: Content-Type
-        AllowOrigin: "*"  # You can restrict this to your domain later
+        AllowOrigin: "*" 
 
   UploadImageFunction:
     Type: AWS::Serverless::Function
