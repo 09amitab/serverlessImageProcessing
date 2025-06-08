@@ -1,51 +1,61 @@
 import json
 import boto3
-import os
 import base64
-from datetime import datetime
+import os
+import logging
+
 from urllib.parse import unquote_plus
 
 s3 = boto3.client('s3')
-BUCKET_NAME = os.environ.get('BUCKET_NAME')
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+BUCKET_NAME = os.environ.get('BUCKET_NAME', '')
 
 def lambda_handler(event, context):
+    logger.info("Received event: %s", json.dumps(event))
+
     try:
-        # Decode the image file from the multipart form-data
+        if event['httpMethod'] != 'POST':
+            return _response(405, "Method Not Allowed")
+
         content_type = event['headers'].get('Content-Type') or event['headers'].get('content-type')
-        body = base64.b64decode(event['body']) if event.get('isBase64Encoded') else event['body']
+
+        # Check multipart form-data
+        if not content_type or not content_type.startswith("multipart/form-data"):
+            return _response(400, "Invalid content type")
+
+        # Extract file content from the body using base64 (API Gateway handles the decoding)
+        body = base64.b64decode(event['body']) if event.get("isBase64Encoded", False) else event['body']
         
-        # Extract boundary from content-type
-        boundary = content_type.split("boundary=")[-1]
-        parts = body.split(boundary.encode())
+        # Naively extract file content and name
+        file_content = body.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 2)[0]
+        header_line = body.split(b"\r\n", 2)[1].decode()
+        file_name = header_line.split("filename=")[1].strip('"')
 
-        # Extract image bytes and filename
-        for part in parts:
-            if b'Content-Disposition' in part and b'filename=' in part:
-                header, file_data = part.split(b'\r\n\r\n', 1)
-                file_data = file_data.rsplit(b'\r\n', 1)[0]
-                disposition = header.decode()
-                filename = disposition.split('filename="')[1].split('"')[0]
-                
-                # Clean filename and add timestamp
-                clean_filename = unquote_plus(filename.replace(' ', '_'))
-                key = f"uploads/{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}_{clean_filename}"
+        # Upload to S3
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=file_name,
+            Body=file_content,
+            ContentType="image/jpeg" if file_name.endswith(".jpg") or file_name.endswith(".jpeg") else "image/png"
+        )
 
-                # Upload to S3
-                s3.put_object(Bucket=BUCKET_NAME, Key=key, Body=file_data)
-                
-                return {
-                    "statusCode": 200,
-                    "body": json.dumps(f"Image uploaded to {key}")
-                }
-
-        return {
-            "statusCode": 400,
-            "body": "No valid file part found in the request."
-        }
+        return _response(200, f"Image '{file_name}' uploaded successfully.")
 
     except Exception as e:
-        print("Error:", e)
-        return {
-            "statusCode": 500,
-            "body": json.dumps(f"Error uploading image: {str(e)}")
-        }
+        logger.exception("Error uploading image")
+        return _response(500, f"Error uploading image: {str(e)}")
+
+
+def _response(status_code, message):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({"message": message})
+    }
