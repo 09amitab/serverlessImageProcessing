@@ -1,18 +1,17 @@
-name: Deploy to AWS
+name: Deploy to AWS via SAM
 
 on:
   push:
     branches:
       - main
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
-    name: Deploy CloudFormation Stack
     runs-on: ubuntu-latest
-
-    permissions:
-      id-token: write
-      contents: read
 
     steps:
       - name: Checkout code
@@ -21,15 +20,19 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-         with:
-         role-to-assume: arn:aws:iam::339712737407:role/GitHubActionsDeploymentRole
-         aws-region: us-east-1
+          role-to-assume: arn:aws:iam::<339712737407>:role/GitHubActionsDeploymentRole
+          aws-region: us-east-1
 
-      - name: Deploy CloudFormation stack
+      - name: Set up SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Build SAM App
+        run: sam build
+
+      - name: Deploy SAM App
         run: |
-          aws cloudformation deploy \
-          --template-file template.yaml \
-          --stack-name image-processing-app \
-          --capabilities CAPABILITY_NAMED_IAM \
-          --region us-east-1
-
+          sam deploy --stack-name image-processing-app \
+                     --capabilities CAPABILITY_IAM \
+                     --region us-east-1 \
+                     --confirm-changeset \
+                     --no-fail-on-empty-changeset
