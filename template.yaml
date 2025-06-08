@@ -1,3 +1,6 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Pure CloudFormation - S3 bucket and Lambda function without S3 notification
+
 Resources:
   ImageBucket:
     Type: AWS::S3::Bucket
@@ -7,8 +10,9 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
+      RoleName: !Sub "LambdaExecutionRole-${AWS::StackName}"
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
           - Effect: Allow
             Principal:
@@ -17,14 +21,14 @@ Resources:
       Policies:
         - PolicyName: LambdaS3Access
           PolicyDocument:
-            Version: '2012-10-17'
+            Version: "2012-10-17"
             Statement:
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: '*'
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -34,40 +38,26 @@ Resources:
                   - !GetAtt ImageBucket.Arn
                   - !Sub "${ImageBucket.Arn}/*"
 
-  UploadImageFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Handler: upload.lambda_handler
-      Role: !GetAtt LambdaExecutionRole.Arn
-      Runtime: python3.10
-      Code:
-        S3Bucket: your-code-bucket
-        S3Key: your-upload-function.zip
-
   ProcessImageFunction:
     Type: AWS::Lambda::Function
     Properties:
+      FunctionName: !Sub "process-image-${AWS::StackName}"
       Handler: process.lambda_handler
-      Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: python3.10
+      Role: !GetAtt LambdaExecutionRole.Arn
       Code:
-        S3Bucket: your-code-bucket
-        S3Key: your-process-function.zip
+        S3Bucket: your-lambda-code-bucket
+        S3Key: your-lambda-code-key.zip
+      MemorySize: 128
+      Timeout: 10
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref ImageBucket
 
-  LambdaInvokePermissionForS3:
+  LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref ProcessImageFunction
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
       SourceArn: !GetAtt ImageBucket.Arn
-
-  BucketNotification:
-    Type: AWS::S3::BucketNotification
-    DependsOn: LambdaInvokePermissionForS3
-    Properties:
-      Bucket: !Ref ImageBucket
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*
-            Function: !GetAtt ProcessImageFunction.Arn
