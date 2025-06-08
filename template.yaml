@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Pure CloudFormation - S3 bucket and Lambda function without S3 notification
+Description: Pure CloudFormation - S3 bucket and Lambda function 
 
 Resources:
   ImageBucket:
@@ -10,7 +10,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "LambdaExecutionRole-${AWS::StackName}"
+      RoleName: !Sub "LambdaExecution-${AWS::StackName}"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -44,7 +44,7 @@ Resources:
       FunctionName: !Sub "process-image-${AWS::StackName}"
       Handler: process.lambda_handler
       Runtime: python3.10
-      Role: !GetAtt LambdaExecutionRole.Arn
+      Role: !GetAtt LambdaExecution.Arn
       Code:
         S3Bucket: your-lambda-code-bucket
         S3Key: your-lambda-code-key.zip
