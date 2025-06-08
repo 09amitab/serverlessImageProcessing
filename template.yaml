@@ -15,23 +15,29 @@ Globals:
 
 Resources:
 
-  ImageBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-          - Event: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .png
+ImageBucket:
+  Type: AWS::S3::Bucket
+
+S3BucketNotification:
+  Type: AWS::S3::BucketNotification
+  Properties:
+    Bucket: !Ref ImageBucket
+    NotificationConfiguration:
+      LambdaConfigurations:
+        - Event: s3:ObjectCreated:*
+          Function: !GetAtt ProcessImageFunction.Arn
+          Filter:
+            S3Key:
+              Rules:
+                - Name: suffix
+                  Value: .jpg
+        - Event: s3:ObjectCreated:*
+          Function: !GetAtt ProcessImageFunction.Arn
+          Filter:
+            S3Key:
+              Rules:
+                - Name: suffix
+                  Value: .png
             Function: !GetAtt ProcessImageFunction.Arn
 
   NotificationTopic:
@@ -83,13 +89,14 @@ Resources:
       CodeUri: .
       Role: !GetAtt LambdaExecutionRole.Arn
 
-  LambdaInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref ProcessImageFunction
-      Action: lambda:InvokeFunction
-      Principal: s3.amazonaws.com
-      SourceArn: !GetAtt ImageBucket.Arn
+LambdaInvokePermission:
+  Type: AWS::Lambda::Permission
+  Properties:
+    FunctionName: !Ref ProcessImageFunction
+    Action: lambda:InvokeFunction
+    Principal: s3.amazonaws.com
+    SourceArn: !GetAtt ImageBucket.Arn
+
 
   ImageApi:
     Type: AWS::Serverless::Api
