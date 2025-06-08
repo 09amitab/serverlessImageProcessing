@@ -17,24 +17,6 @@ Resources:
 
   ImageBucket:
     Type: AWS::S3::Bucket
-    Properties:
-      # Moved S3 bucket notification configuration here
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*
-            Function: !GetAtt ProcessImageFunction.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-          - Event: s3:ObjectCreated:*
-            Function: !GetAtt ProcessImageFunction.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .png
 
   NotificationTopic:
     Type: AWS::SNS::Topic
@@ -84,14 +66,27 @@ Resources:
       Handler: process.lambda_handler
       CodeUri: .
       Role: !GetAtt LambdaExecutionRole.Arn
-
-  LambdaInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !GetAtt ProcessImageFunction.Arn # Corrected to use !GetAtt for ARN
-      Action: lambda:InvokeFunction
-      Principal: s3.amazonaws.com
-      SourceArn: !GetAtt ImageBucket.Arn
+      Events:
+        S3TriggerJPG:
+          Type: S3
+          Properties:
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpg
+        S3TriggerPNG:
+          Type: S3
+          Properties:
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .png
 
   ImageApi:
     Type: AWS::Serverless::Api
