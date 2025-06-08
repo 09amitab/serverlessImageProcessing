@@ -1,39 +1,12 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: Serverless Image Upload and Processing - No SAM
-
 Resources:
-
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "img-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: "s3:ObjectCreated:*"
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-            Function: !GetAtt ProcessImageFunction.Arn
-          - Event: "s3:ObjectCreated:*"
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .png
-            Function: !GetAtt ProcessImageFunction.Arn
-      CorsConfiguration:
-        CorsRules:
-          - AllowedOrigins: ["*"]
-            AllowedMethods: ["GET", "PUT", "POST", "HEAD"]
-            AllowedHeaders: ["*"]
-            MaxAge: 3000
+      BucketName: !Sub "img-pro-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: LambdaExecutionRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -42,7 +15,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: LambdaS3AccessPolicy
+        - PolicyName: LambdaS3Access
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -51,7 +24,7 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: "*"
+                Resource: '*'
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -64,30 +37,22 @@ Resources:
   UploadImageFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: UploadImageFunction
-      Runtime: python3.10
-      Role: !GetAtt LambdaExecutionRole.Arn
       Handler: upload.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.10
       Code:
-        S3Bucket: <REPLACE_WITH_YOUR_DEPLOYMENT_BUCKET>
-        S3Key: <REPLACE_WITH_ZIPPED_CODE_KEY>
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref ImageBucket
+        S3Bucket: your-code-bucket
+        S3Key: your-upload-function.zip
 
   ProcessImageFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: ProcessImageFunction
-      Runtime: python3.10
-      Role: !GetAtt LambdaExecutionRole.Arn
       Handler: process.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.10
       Code:
-        S3Bucket: <REPLACE_WITH_YOUR_DEPLOYMENT_BUCKET>
-        S3Key: <REPLACE_WITH_ZIPPED_CODE_KEY>
-      Environment:
-        Variables:
-          BUCKET_NAME: !Ref ImageBucket
+        S3Bucket: your-code-bucket
+        S3Key: your-process-function.zip
 
   LambdaInvokePermissionForS3:
     Type: AWS::Lambda::Permission
@@ -97,16 +62,12 @@ Resources:
       Principal: s3.amazonaws.com
       SourceArn: !GetAtt ImageBucket.Arn
 
-Outputs:
-
-  BucketName:
-    Description: Name of the S3 bucket
-    Value: !Ref ImageBucket
-
-  UploadFunction:
-    Description: Upload Image Lambda Function Name
-    Value: !Ref UploadImageFunction
-
-  ProcessFunction:
-    Description: Process Image Lambda Function Name
-    Value: !Ref ProcessImageFunction
+  BucketNotification:
+    Type: AWS::S3::BucketNotification
+    DependsOn: LambdaInvokePermissionForS3
+    Properties:
+      Bucket: !Ref ImageBucket
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt ProcessImageFunction.Arn
