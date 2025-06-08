@@ -18,3 +18,4 @@ def lambda_handler(event, context):
             Message=message,
             Subject="Image Processing Notification"
         )
+        
