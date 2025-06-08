@@ -3,7 +3,7 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - main  # or your deployment branch
+      - main
 
 jobs:
   deploy:
@@ -21,18 +21,12 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::339712737407:role/GitHubActionsDeploymentRole
+          role-to-assume: arn:aws:iam::<339712737407>:role/GitHubActionsDeploymentRole
           aws-region: us-east-1
-
-      - name: Validate CloudFormation template
-        run: |
-          aws cloudformation validate-template --template-body file://template.yaml
-
+          
       - name: Deploy CloudFormation stack
         run: |
           aws cloudformation deploy \
             --template-file template.yaml \
             --stack-name image-processing-app \
-            --capabilities CAPABILITY_IAM \
-            --region us-east-1
-            
+            --capabilities CAPABILITY_IAM

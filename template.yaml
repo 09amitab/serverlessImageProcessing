@@ -1,28 +1,50 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: Serverless Image Upload and Processing (Non-SAM Template)
+Description: Serverless Image Upload and Processing - No SAM
 
 Resources:
 
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "img-processing-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
+      BucketName: !Sub "img-${AWS::AccountId}-${AWS::Region}-${AWS::StackName}"
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: "s3:ObjectCreated:*"
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .jpg
+            Function: !GetAtt ProcessImageFunction.Arn
+          - Event: "s3:ObjectCreated:*"
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .png
+            Function: !GetAtt ProcessImageFunction.Arn
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ["*"]
+            AllowedMethods: ["GET", "PUT", "POST", "HEAD"]
+            AllowedHeaders: ["*"]
+            MaxAge: 3000
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "LambdaExecutionRole-${AWS::StackName}"
+      RoleName: LambdaExecutionRole
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: LambdaS3LogsAccess
+        - PolicyName: LambdaS3AccessPolicy
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
@@ -44,11 +66,11 @@ Resources:
     Properties:
       FunctionName: UploadImageFunction
       Runtime: python3.10
-      Handler: upload.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
+      Handler: upload.lambda_handler
       Code:
-        S3Bucket: your-lambda-code-bucket-name
-        S3Key: upload.zip
+        S3Bucket: <REPLACE_WITH_YOUR_DEPLOYMENT_BUCKET>
+        S3Key: <REPLACE_WITH_ZIPPED_CODE_KEY>
       Environment:
         Variables:
           BUCKET_NAME: !Ref ImageBucket
@@ -58,16 +80,16 @@ Resources:
     Properties:
       FunctionName: ProcessImageFunction
       Runtime: python3.10
-      Handler: process.lambda_handler
       Role: !GetAtt LambdaExecutionRole.Arn
+      Handler: process.lambda_handler
       Code:
-        S3Bucket: your-lambda-code-bucket-name
-        S3Key: process.zip
+        S3Bucket: <REPLACE_WITH_YOUR_DEPLOYMENT_BUCKET>
+        S3Key: <REPLACE_WITH_ZIPPED_CODE_KEY>
       Environment:
         Variables:
           BUCKET_NAME: !Ref ImageBucket
 
-  ProcessImagePermission:
+  LambdaInvokePermissionForS3:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref ProcessImageFunction
@@ -75,75 +97,16 @@ Resources:
       Principal: s3.amazonaws.com
       SourceArn: !GetAtt ImageBucket.Arn
 
-  BucketNotification:
-    Type: AWS::S3::BucketNotification
-    Properties:
-      Bucket: !Ref ImageBucket
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: "s3:ObjectCreated:*"
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-            Function: !GetAtt ProcessImageFunction.Arn
-          - Event: "s3:ObjectCreated:*"
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .png
-            Function: !GetAtt ProcessImageFunction.Arn
-
-  ImageUploadApi:
-    Type: AWS::ApiGateway::RestApi
-    Properties:
-      Name: UploadImageAPI
-
-  ImageUploadResource:
-    Type: AWS::ApiGateway::Resource
-    Properties:
-      ParentId: !GetAtt ImageUploadApi.RootResourceId
-      PathPart: uploadimage
-      RestApiId: !Ref ImageUploadApi
-
-  UploadImageMethod:
-    Type: AWS::ApiGateway::Method
-    Properties:
-      RestApiId: !Ref ImageUploadApi
-      ResourceId: !Ref ImageUploadResource
-      HttpMethod: POST
-      AuthorizationType: NONE
-      Integration:
-        Type: AWS_PROXY
-        IntegrationHttpMethod: POST
-        Uri:
-          Fn::Sub:
-            - arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UploadFunctionArn}/invocations
-            - UploadFunctionArn: !GetAtt UploadImageFunction.Arn
-
-  UploadLambdaInvokePermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      FunctionName: !Ref UploadImageFunction
-      Action: lambda:InvokeFunction
-      Principal: apigateway.amazonaws.com
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${ImageUploadApi}/*/POST/uploadimage"
-
-  ApiDeployment:
-    Type: AWS::ApiGateway::Deployment
-    DependsOn: UploadImageMethod
-    Properties:
-      RestApiId: !Ref ImageUploadApi
-      StageName: Prod
-
 Outputs:
 
-  ApiEndpoint:
-    Description: API Gateway endpoint for image upload
-    Value: !Sub "https://${ImageUploadApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/uploadimage"
-
   BucketName:
-    Description: S3 bucket for image uploads
+    Description: Name of the S3 bucket
     Value: !Ref ImageBucket
+
+  UploadFunction:
+    Description: Upload Image Lambda Function Name
+    Value: !Ref UploadImageFunction
+
+  ProcessFunction:
+    Description: Process Image Lambda Function Name
+    Value: !Ref ProcessImageFunction
