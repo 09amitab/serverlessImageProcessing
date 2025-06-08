@@ -35,3 +35,4 @@ jobs:
             --stack-name image-processing-app \
             --capabilities CAPABILITY_IAM \
             --region us-east-1
+            
