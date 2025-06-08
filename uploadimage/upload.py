@@ -1,46 +1,54 @@
 import json
+import base64
 import boto3
 import os
-import uuid
+from datetime import datetime
 
 s3 = boto3.client('s3')
-bucket = os.environ['BUCKET_NAME']
+bucket_name = os.environ['BUCKET_NAME']
 
 def lambda_handler(event, context):
     try:
-        content_type = event["headers"].get("content-type") or event["headers"].get("Content-Type")
-        if "multipart/form-data" not in content_type:
+        if event.get("isBase64Encoded"):
+            file_content = base64.b64decode(event['body'])
+        else:
             return {
                 "statusCode": 400,
-                "body": "Only multipart/form-data supported",
-                "headers": {
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Methods": "POST,OPTIONS"
-                }
+                "body": json.dumps({"error": "Expected base64-encoded data"})
             }
 
-        filename = f"{uuid.uuid4()}.jpg"
-        file_content = event['body']  # Assuming binary media enabled
-        s3.put_object(Bucket=bucket, Key=filename, Body=file_content)
+        headers = event.get("headers", {})
+        content_type = headers.get("Content-Type") or headers.get("content-type")
+
+        if not content_type:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "Missing Content-Type header"})
+            }
+
+        extension = "jpg" if "jpeg" in content_type else "png" if "png" in content_type else None
+
+        if not extension:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "Unsupported image format"})
+            }
+
+        filename = f"image_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}.{extension}"
+        s3.put_object(Bucket=bucket_name, Key=filename, Body=file_content, ContentType=content_type)
 
         return {
             "statusCode": 200,
-            "body": json.dumps({"message": "Upload successful", "filename": filename}),
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
                 "Access-Control-Allow-Methods": "POST,OPTIONS"
-            }
+            },
+            "body": json.dumps({"message": "Image uploaded", "filename": filename})
         }
 
     except Exception as e:
         return {
             "statusCode": 500,
-            "body": str(e),
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Methods": "POST,OPTIONS"
-            }
+            "body": json.dumps({"error": str(e)})
         }
