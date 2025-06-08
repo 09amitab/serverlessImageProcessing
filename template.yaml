@@ -10,7 +10,7 @@ Resources:
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "LambdaExecution-${AWS::StackName}"
+      RoleName: !Sub "LambdaExecutionRole-${AWS::StackName}"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -44,7 +44,7 @@ Resources:
       FunctionName: !Sub "process-image-${AWS::StackName}"
       Handler: process.lambda_handler
       Runtime: python3.10
-      Role: !GetAtt LambdaExecution.Arn
+      Role: !GetAtt LambdaExecutionRole.Arn
       Code:
         S3Bucket: your-lambda-code-bucket
         S3Key: your-lambda-code-key.zip
