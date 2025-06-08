@@ -1,17 +1,14 @@
-name: Deploy to AWS via SAM
+name: Deploy to AWS using SAM
 
 on:
   push:
     branches:
       - main
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    name: Deploy SAM Stack
 
     steps:
       - name: Checkout code
@@ -20,16 +17,17 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::<339712737407>:role/GitHubActionsDeploymentRole
-          aws-region: us-east-1
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1  # or your region
 
-      - name: Set up SAM CLI
+      - name: Setup AWS SAM CLI
         uses: aws-actions/setup-sam@v2
 
-      - name: Build SAM App
+      - name: Build SAM app
         run: sam build
 
-      - name: Deploy SAM App
+      - name: Deploy SAM app
         run: |
           sam deploy --stack-name image-processing-app \
                      --capabilities CAPABILITY_IAM \
