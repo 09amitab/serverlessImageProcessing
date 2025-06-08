@@ -17,11 +17,8 @@ Resources:
 
   ImageBucket:
     Type: AWS::S3::Bucket
-
-  S3BucketNotification:
-    Type: AWS::S3::BucketNotification
     Properties:
-      Bucket: !Ref ImageBucket
+      # Moved S3 bucket notification configuration here
       NotificationConfiguration:
         LambdaConfigurations:
           - Event: s3:ObjectCreated:*
@@ -91,7 +88,7 @@ Resources:
   LambdaInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref ProcessImageFunction
+      FunctionName: !GetAtt ProcessImageFunction.Arn # Corrected to use !GetAtt for ARN
       Action: lambda:InvokeFunction
       Principal: s3.amazonaws.com
       SourceArn: !GetAtt ImageBucket.Arn
