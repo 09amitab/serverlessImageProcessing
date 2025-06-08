@@ -17,25 +17,6 @@ Resources:
 
   ImageBucket:
     Type: AWS::S3::Bucket
-    Properties:
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: s3:ObjectCreated:*
-            # Note: This refers to the ARN of the Lambda function
-            Function: !GetAtt ProcessImageFunction.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .jpg
-          - Event: s3:ObjectCreated:*
-            # Note: This refers to the ARN of the Lambda function
-            Function: !GetAtt ProcessImageFunction.Arn
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: .png
 
   NotificationTopic:
     Type: AWS::SNS::Topic
@@ -64,12 +45,6 @@ Resources:
                   - s3:PutObject
                   - sns:Publish
                 Resource: "*"
-              # Add permissions for ProcessImageFunction to receive S3 invocations
-              # This is crucial if SAM doesn't automatically add it when triggered via bucket config
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource: !GetAtt ProcessImageFunction.Arn # Grant invoke permission to itself (if needed)
 
   UploadImageFunction:
     Type: AWS::Serverless::Function
@@ -85,7 +60,7 @@ Resources:
             Method: post
             RestApiId: !Ref ImageApi
 
-   ProcessImageFunction:
+  ProcessImageFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: process.lambda_handler
@@ -113,17 +88,6 @@ Resources:
                   - Name: suffix
                     Value: .png
 
-      # If the S3 trigger on the bucket doesn't automatically add permission,
-      # you might need to add it here, but typically SAM handles it.
-      # For now, let's rely on the above change.
-
-  # REMOVED: LambdaInvokePermission
-  # This resource is a common cause of circular dependencies when S3 notifications are defined on the bucket.
-  # SAM/CloudForma tion often implicitly creates the necessary permissions.
-  # If after this removal, you still get permission errors for S3 invoking Lambda,
-  # you would add an inline policy to the LambdaExecutionRole or the ProcessImageFunction's policies
-  # specifically granting 'lambda:InvokeFunction' permissions, targeting the ProcessImageFunction's ARN.
-
   ImageApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -135,6 +99,7 @@ Resources:
         AllowOrigin: "'*'"
 
 Outputs:
+
   UploadEndpoint:
     Description: API Gateway endpoint for uploading images
     Value: !Sub "https://${ImageApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/uploadimage"
