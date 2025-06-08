@@ -26,8 +26,9 @@ jobs:
          aws-region: us-east-1
 
       - name: Deploy CloudFormation stack
-        run: |
-          aws cloudformation deploy \
-            --template-file template.yaml \
-            --stack-name image-processing-app \
-            --capabilities CAPABILITY_IAM
+        aws cloudformation deploy \
+        --template-file template.yaml \
+        --stack-name your-stack-name \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --region us-east-1 \
+
