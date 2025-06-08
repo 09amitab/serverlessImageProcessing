@@ -33,4 +33,3 @@ jobs:
           --capabilities CAPABILITY_NAMED_IAM \
           --region us-east-1
 
-
