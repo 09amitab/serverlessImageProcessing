@@ -32,5 +32,6 @@ jobs:
             --stack-name image-processing-app \
             --capabilities CAPABILITY_IAM \
             --region ${{ secrets.AWS_REGION }} \
+            --resolve-s3 \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset
