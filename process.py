@@ -20,6 +20,7 @@ def lambda_handler(event, context):
                 CopySource=copy_source,
                 Key=target_key
             )
+            
 
         return {'statusCode': 200, 'body': 'Image processed'}
     except Exception as e:
