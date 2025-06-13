@@ -63,7 +63,7 @@ Resources:
         ApiUpload:
           Type: Api
           Properties:
-            Path: /uploadimage
+            Path: /Projects_Learnbay
             Method: post
             RestApiId: !Ref ImageApi
 
@@ -74,6 +74,12 @@ Resources:
       Handler: process.lambda_handler
       CodeUri: .
       Role: !GetAtt LambdaExecutionRole.Arn
+      Events:
+        S3Upload:
+          Type: S3
+          Properties:
+            Bucket: !Ref ImageBucket
+            Events: s3:ObjectCreated:*
 
   ImageApi:
     Type: AWS::Serverless::Api
