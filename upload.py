@@ -1,47 +1,54 @@
+import json
 import boto3
 import base64
-import uuid
 import os
-import json
 
 s3 = boto3.client('s3')
-sns = boto3.client('sns')
-
-BUCKET_NAME = os.environ['BUCKET_NAME']
-TOPIC_ARN = os.environ['TOPIC_ARN']
 
 def lambda_handler(event, context):
+    # Handle CORS preflight
+    if event.get('httpMethod') == 'OPTIONS':
+        return {
+            "statusCode": 200,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Methods": "OPTIONS,POST"
+            },
+            "body": json.dumps({"message": "CORS preflight successful"})
+        }
+
     try:
-        body = event.get("body")
-        is_base64_encoded = event.get("isBase64Encoded", False)
+        body = json.loads(event.get('body') or '{}')
 
-        if is_base64_encoded:
-            image_data = base64.b64decode(body)
-        else:
-            image_data = body.encode('utf-8')
+        if 'image' not in body:
+            raise ValueError("Missing 'image' field in request body")
 
-        image_id = str(uuid.uuid4())
-        key = f"uploads/{image_id}.jpg"
+        image_data = body['image']
+        filename = body.get('filename', 'uploaded_image.jpg')
 
-        s3.put_object(Bucket=BUCKET_NAME, Key=key, Body=image_data, ContentType='image/jpeg')
+        image_content = base64.b64decode(image_data.split(",")[1])
+        bucket_name = os.environ['BUCKET_NAME']
 
-        # Send SNS notification
-        sns.publish(
-            TopicArn=TOPIC_ARN,
-            Subject="Image Uploaded",
-            Message=f"A new image has been uploaded with ID: {image_id}"
-        )
+        s3.put_object(Bucket=bucket_name, Key=filename, Body=image_content, ContentType="image/jpeg")
 
         return {
             "statusCode": 200,
-            "body": json.dumps({"message": "Image uploaded successfully", "image_id": image_id}),
-            "headers": {"Content-Type": "application/json"}
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Methods": "OPTIONS,POST"
+            },
+            "body": json.dumps({"message": "Upload successful", "filename": filename})
         }
 
     except Exception as e:
-        print(f"Error: {e}")
         return {
             "statusCode": 500,
-            "body": json.dumps({"error": str(e)}),
-            "headers": {"Content-Type": "application/json"}
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+                "Access-Control-Allow-Methods": "OPTIONS,POST"
+            },
+            "body": json.dumps({"error": str(e)})
         }
