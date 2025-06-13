@@ -63,7 +63,7 @@ Resources:
         ApiUpload:
           Type: Api
           Properties:
-            Path: C: \Projects_Learnbay
+            Path: /Projects_Learnbay
             Method: post
             RestApiId: !Ref ImageApi
 
