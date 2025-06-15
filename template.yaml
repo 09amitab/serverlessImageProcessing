@@ -63,7 +63,7 @@ Resources:
         ApiUpload:
           Type: Api
           Properties:
-            Path: /Projects_Learnbay
+            Path: Projects_Learnbay
             Method: post
             RestApiId: !Ref ImageApi
 
@@ -106,3 +106,5 @@ Outputs:
   SnsTopic:
     Description: "Notification Topic ARN"
     Value: !Ref NotificationTopic
+
+    
